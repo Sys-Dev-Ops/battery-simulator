@@ -9,12 +9,38 @@
       font-family: Arial, sans-serif;
       background-color: #f2f2f2;
       text-align: center;
-      padding-top: 50px;
+      padding-top: 30px;
     }
+
     svg {
       width: 300px;
       height: 100px;
     }
+
+    .appliances {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      margin-top: 40px;
+      flex-wrap: wrap;
+    }
+
+    .appliance {
+      text-align: center;
+      font-size: 14px;
+    }
+
+    .appliance img {
+      width: 60px;
+      height: 60px;
+      filter: grayscale(100%);
+      transition: 0.3s;
+    }
+
+    .appliance.on img {
+      filter: grayscale(0%) drop-shadow(0 0 5px limegreen);
+    }
+
     #battery-text {
       font-size: 20px;
       font-weight: bold;
@@ -25,15 +51,30 @@
   <h1>Battery Level</h1>
 
   <svg viewBox="0 0 200 50">
-    <!-- Battery outline -->
     <rect x="1" y="10" width="180" height="30" fill="none" stroke="black" stroke-width="2"/>
-    <!-- Battery tip -->
     <rect x="181" y="18" width="10" height="14" fill="black"/>
-    <!-- Dynamic battery fill -->
     <rect id="battery-fill" x="2" y="11" width="176" height="28" fill="green"/>
-    <!-- Text inside battery -->
     <text id="battery-text" x="90" y="31" fill="white" text-anchor="middle">100%</text>
   </svg>
+
+  <div class="appliances">
+    <div class="appliance" id="LED">
+      <img src="https://img.icons8.com/ios-filled/100/light-on.png" alt="LED Light" />
+      <div>LED</div>
+    </div>
+    <div class="appliance" id="FAN">
+      <img src="https://img.icons8.com/ios-filled/100/fan.png" alt="Fan" />
+      <div>Fan</div>
+    </div>
+    <div class="appliance" id="AC">
+      <img src="https://img.icons8.com/ios-filled/100/air-conditioner.png" alt="AC" />
+      <div>AC</div>
+    </div>
+    <div class="appliance" id="GEYSER">
+      <img src="https://img.icons8.com/ios-filled/100/geyser.png" alt="Geyser" />
+      <div>Geyser</div>
+    </div>
+  </div>
 
   <script>
     async function updateBattery() {
@@ -49,7 +90,6 @@
           document.getElementById("battery-fill").setAttribute("width", fillWidth);
           document.getElementById("battery-text").textContent = `${clamped}%`;
 
-          // Change fill color based on level
           const fillColor =
             clamped > 60 ? "green" :
             clamped > 30 ? "orange" : "red";
@@ -63,9 +103,30 @@
       }
     }
 
-    // Initial call and update every 5 seconds
-    updateBattery();
-    setInterval(updateBattery, 5000);
+    async function updateAppliances() {
+      try {
+        const response = await fetch("appliances.json", { cache: "no-store" });
+        const data = await response.json();
+
+        for (const appliance in data) {
+          const isOn = data[appliance] === 1;
+          const element = document.getElementById(appliance);
+          if (element) {
+            element.classList.toggle("on", isOn);
+          }
+        }
+      } catch (error) {
+        console.error("Error reading appliances:", error);
+      }
+    }
+
+    function updateAll() {
+      updateBattery();
+      updateAppliances();
+    }
+
+    updateAll();
+    setInterval(updateAll, 5000);
   </script>
 </body>
 </html>
