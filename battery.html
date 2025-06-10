@@ -1,63 +1,71 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Battery Status (SVG)</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Battery Simulator</title>
   <style>
     body {
-      font-family: sans-serif;
+      font-family: Arial, sans-serif;
+      background-color: #f2f2f2;
       text-align: center;
-      margin-top: 50px;
+      padding-top: 50px;
     }
     svg {
-      width: 200px;
-      height: auto;
+      width: 300px;
+      height: 100px;
     }
-    #percentageText {
-      font-size: 24px;
-      margin-top: 10px;
+    #battery-text {
+      font-size: 20px;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
+  <h1>Battery Level</h1>
 
-  <!-- SVG Battery Graphic -->
-  <svg viewBox="0 0 120 60" xmlns="http://www.w3.org/2000/svg">
-    <!-- Battery Outline -->
-    <rect x="2" y="10" width="100" height="40" rx="5" ry="5" fill="none" stroke="#333" stroke-width="4"/>
-    <!-- Battery Tip -->
-    <rect x="104" y="22" width="12" height="16" rx="2" ry="2" fill="#333"/>
-    <!-- Battery Fill -->
-    <rect id="batteryFill" x="4" y="12" width="96" height="36" rx="3" ry="3" fill="green"/>
+  <svg viewBox="0 0 200 50">
+    <!-- Battery outline -->
+    <rect x="1" y="10" width="180" height="30" fill="none" stroke="black" stroke-width="2"/>
+    <!-- Battery tip -->
+    <rect x="181" y="18" width="10" height="14" fill="black"/>
+    <!-- Dynamic battery fill -->
+    <rect id="battery-fill" x="2" y="11" width="176" height="28" fill="green"/>
+    <!-- Text inside battery -->
+    <text id="battery-text" x="90" y="31" fill="white" text-anchor="middle">100%</text>
   </svg>
 
-  <!-- Percentage Text -->
-  <div id="percentageText">Loading...</div>
-
   <script>
-    function updateBattery() {
-      fetch('battery.txt')
-        .then(response => response.text())
-        .then(percent => {
-          const percentage = parseInt(percent.trim(), 10);
-          const safePercentage = Math.max(0, Math.min(100, percentage));
+    async function updateBattery() {
+      try {
+        const response = await fetch("battery.txt", { cache: "no-store" });
+        const text = await response.text();
+        const percent = parseInt(text.trim());
 
-          const fillWidth = (safePercentage / 100) * 96; // full width is 96
-          const batteryFill = document.getElementById('batteryFill');
-          const percentageText = document.getElementById('percentageText');
+        if (!isNaN(percent)) {
+          const clamped = Math.max(0, Math.min(100, percent));
+          const fillWidth = (clamped / 100) * 176;
 
-          batteryFill.setAttribute('width', fillWidth);
-          batteryFill.setAttribute('fill', safePercentage <= 20 ? 'red' : (safePercentage <= 50 ? 'orange' : 'green'));
-          percentageText.textContent = safePercentage + '%';
-        })
-        .catch(error => {
-          console.error("Error reading battery:", error);
-        });
+          document.getElementById("battery-fill").setAttribute("width", fillWidth);
+          document.getElementById("battery-text").textContent = `${clamped}%`;
+
+          // Change fill color based on level
+          const fillColor =
+            clamped > 60 ? "green" :
+            clamped > 30 ? "orange" : "red";
+
+          document.getElementById("battery-fill").setAttribute("fill", fillColor);
+        } else {
+          console.error("Battery value is NaN:", text);
+        }
+      } catch (error) {
+        console.error("Error reading battery:", error);
+      }
     }
 
-    setInterval(updateBattery, 5000); // every 5 seconds
-    updateBattery(); // initial load
+    // Initial call and update every 5 seconds
+    updateBattery();
+    setInterval(updateBattery, 5000);
   </script>
-
 </body>
 </html>
