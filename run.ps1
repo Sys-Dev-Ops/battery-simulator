@@ -1,15 +1,17 @@
-$BatteryFile = "C:\inetpub\wwwroot\battery.txt"
+# Config
+$RepoPath = "https://github.com/Sys-Dev-Ops/battery-simulator.git"
+$BatteryFile = Join-Path $RepoPath "battery.txt"
 $Percent = 100
 
-# Load weights
-$LoadWeights = @{
+# Appliance weights
+$Weights = @{
     LED     = 1
     FAN     = 2
     AC      = 5
     GEYSER  = 7
 }
 
-# Appliance status (1 = ON, 0 = OFF)
+# Appliance states (set 0 or 1)
 $Appliances = @{
     LED     = 1
     FAN     = 1
@@ -19,19 +21,22 @@ $Appliances = @{
 
 # Compute total load
 $TotalLoad = 0
-foreach ($item in $Appliances.Keys) {
-    $TotalLoad += $Appliances[$item] * $LoadWeights[$item]
+foreach ($key in $Appliances.Keys) {
+    $TotalLoad += $Appliances[$key] * $Weights[$key]
 }
 
 if ($TotalLoad -eq 0) { $TotalLoad = 1 }
 
-# Discharge interval in seconds
-$Interval = [math]::Max(1, [math]::Round(3600 / (100 / $TotalLoad)))
+# Discharge interval based on load
+$Interval = [Math]::Max(1, [Math]::Round(3600 / (100 / $TotalLoad)))
 
-# Simulate battery drain
-Set-Content -Path $BatteryFile -Value $Percent
+# Start simulation
+Set-Location $RepoPath
 while ($Percent -ge 0) {
-    Set-Content -Path $BatteryFile -Value $Percent
+    "$Percent" | Set-Content $BatteryFile -Encoding utf8
+    git add battery.txt
+    git commit -m "Battery update: $Percent%" --quiet
+    git push origin main
     Start-Sleep -Seconds $Interval
     $Percent--
 }

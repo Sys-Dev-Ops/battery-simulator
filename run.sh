@@ -1,30 +1,64 @@
 #!/bin/bash
+# run.sh - Shell script for Linux to simulate battery drain and appliance states
 
-BATTERY_FILE="/var/www/html/battery.txt"
-PERCENT=100
+BATTERY_FILE="battery.txt"
+APPLIANCES_FILE="appliances.json"
+GITHUB_REPO="https://github.com/Sys-Dev-Ops/battery-simulator.git"
+LOCAL_REPO="battery-simulator"
 
-# Load weights (modify as needed)
-LED_LOAD=1
-FAN_LOAD=2
-AC_LOAD=5
-GEYSER_LOAD=7
+# Clone repo if not already cloned
+if [ ! -d "$LOCAL_REPO" ]; then
+  git clone "$GITHUB_REPO"
+fi
+cd "$LOCAL_REPO"
 
-# Appliance usage (0 = OFF, 1 = ON)
-LED=1
-FAN=1
-AC=0
-GEYSER=0
+# Initialize files if missing
+if [ ! -f "$BATTERY_FILE" ]; then
+  echo 100 > "$BATTERY_FILE"
+fi
 
-# Calculate total load factor
-LOAD=$(( (LED * LED_LOAD) + (FAN * FAN_LOAD) + (AC * AC_LOAD) + (GEYSER * GEYSER_LOAD) ))
+if [ ! -f "$APPLIANCES_FILE" ]; then
+  cat <<EOF > "$APPLIANCES_FILE"
+{
+  "LED": false,
+  "FAN": false,
+  "AC": false,
+  "GEYSER": false
+}
+EOF
+fi
 
-# Discharge rate: how many seconds between each 1% drop
-# The more load, the faster the drain (minimum 1 second)
-[[ $LOAD -eq 0 ]] && LOAD=1
-INTERVAL=$(( 3600 / (100 / LOAD) ))  # dynamic discharge rate over 1 hour
+PERCENT=$(cat "$BATTERY_FILE")
 
-while [ $PERCENT -ge 0 ]; do
-    echo $PERCENT > "$BATTERY_FILE"
-    sleep $INTERVAL
-    ((PERCENT--))
+# Load appliance power draw values (watts)
+declare -A power_draw=(
+  [LED]=5
+  [FAN]=40
+  [AC]=2000
+  [GEYSER]=1500
+)
+
+# Discharge every 10 seconds
+while [ "$PERCENT" -gt 0 ]; do
+  # Read appliance state
+  STATES=$(jq -r 'to_entries[] | select(.value == true) | .key' "$APPLIANCES_FILE")
+  LOAD=0
+  for APP in $STATES; do
+    LOAD=$((LOAD + power_draw[$APP]))
+  done
+
+  # Calculate discharge rate (scale load to battery percentage drain)
+  let "DRAIN = LOAD / 500" # Simple conversion
+  [ "$DRAIN" -lt 1 ] && DRAIN=1
+  let "PERCENT = PERCENT - DRAIN"
+  [ "$PERCENT" -lt 0 ] && PERCENT=0
+
+  echo "$PERCENT" > "$BATTERY_FILE"
+
+  git add "$BATTERY_FILE" "$APPLIANCES_FILE"
+  git commit -m "Update battery to $PERCENT%" >/dev/null 2>&1
+  git push origin main
+
+  echo "[$(date +%T)] 🔋 Battery: $PERCENT% (Load: $LOAD W)"
+  sleep 10
 done
